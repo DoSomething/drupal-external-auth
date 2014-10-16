@@ -1,0 +1,7 @@
+name = External Auth
+description = Provides a common way to override user authentication and registration.
+core = 7.x
+package = Authentication
+
+files[] = includes/external_auth_login_controller.inc
+files[] = includes/external_auth_register_controller.inc

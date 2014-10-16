@@ -1,0 +1,169 @@
+<?php
+
+/**
+ * @file
+ * External Auth primary module file.
+ */
+
+// -----------------------------------------------------------------------
+// Hook implementations
+
+/**
+ * Implements hook_module_implements_alter().
+ *
+ * Moves the hook_form_alter() implementation to the bottom.
+ * That way we ensure to run last and have the final word in form callbacks
+ * altering.
+ */
+function external_auth_module_implements_alter(&$implementations, $hook) {
+  if ($hook == 'form_alter' && isset($implementations['external_auth'])) {
+    $group = $implementations['external_auth'];
+    unset($implementations['external_auth']);
+    $implementations['external_auth'] = $group;
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter() form user_login_form().
+ */
+function external_auth_form_user_login_alter(&$form, &$form_state, $form_id) {
+  _external_auth_alter_login($form);
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter() form user_login_block_form().
+ */
+function external_auth_form_user_login_block_alter(&$form, &$form_state) {
+  _external_auth_alter_login($form);
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter() form user_register_form().
+ */
+function external_auth_form_user_register_form_alter(&$form, $form_state) {
+  _external_auth_alter_registration($form);
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter() form user_profile_form().
+ */
+function external_auth_form_user_profile_form_alter(&$form, $form_state) {
+  // @todo Implement profile sync.
+}
+
+// -----------------------------------------------------------------------
+// Callbacks
+
+/**
+ * Validates user_login_form.
+ */
+function external_auth_process_login($form, &$form_state) {
+  $values = &$form_state['values'];
+
+  // Fallback to default validation when name or pass not set.
+  if (empty($values['name']) || empty($values['pass'])) {
+    return;
+  }
+
+  $login_controller = _external_auth_get_login_controller()->setup($form_state);
+
+  // Process user with existing local account:
+  if ($login_controller->loginExists()) {
+    $login_controller->loginExistingUser();
+  }
+  else {
+    // Check whether remote account with requested name exists:
+    try {
+      if (!$login_controller->getRemoteUser()) {
+        // Todo: link to forgot password page.
+        form_set_error('name', t('Sorry, unrecognized username or password.'));
+        return FALSE;
+      }
+    }
+    catch (Exception $e) {
+      // @todo: Log unexpected response.
+      form_set_error('name', t('Unexpected login error.'));
+      return FALSE;
+    }
+
+    $account = $login_controller->createFromRemote();
+
+    if ($account) {
+      form_set_value($form['name'], $account->name, $form_state);
+    }
+    else {
+      // @todo: Log unexpected response.
+      // form_set_error('name', t('Something went wrong.'));
+    }
+  }
+}
+
+/**
+ * Validates user_register.
+ */
+function external_auth_process_register($form, &$form_state) {
+  if (form_get_errors()) {
+    return FALSE;
+  }
+  $register_controller = _external_auth_get_register_controller()->setup($form_state);
+
+  if (!$register_controller->signup()) {
+    $register_controller->processSignupErrors($form);
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+// -----------------------------------------------------------------------
+// Miscellaneous
+
+/**
+ * Alters user login forms.
+ */
+function _external_auth_alter_login(&$form) {
+  // Run login validator **BEFORE** everything else.
+  array_unshift($form['#validate'], 'external_auth_process_login');
+}
+
+/**
+ * Alters user registration forms.
+ */
+function _external_auth_alter_registration(&$form) {
+  // Run registration validator **AFTER** everything else.
+  array_push($form['#validate'], 'external_auth_process_register');
+}
+
+/**
+ * Alters user registration forms.
+ */
+function _external_auth_get_active_auth_method() {
+  $result = module_invoke_all('external_auth_method');
+  // @todo: create admin interface for selection.
+  // @todo: return active.
+  return reset($result);
+}
+
+/**
+ * Alters user registration forms.
+ */
+function _external_auth_get_login_controller() {
+  $method = _external_auth_get_active_auth_method();
+  $login_controller_class = $method['login controller'];
+  $login_controller = new $login_controller_class();
+  // @todo: check instance.
+  return $login_controller;
+}
+
+/**
+ * Alters user registration forms.
+ */
+function _external_auth_get_register_controller() {
+  $method = _external_auth_get_active_auth_method();
+  $register_controller_class = $method['register controller'];
+  $register_controller = new $register_controller_class();
+  // @todo: check instance.
+  return $register_controller;
+}
+
+// -----------------------------------------------------------------------
