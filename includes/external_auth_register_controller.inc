@@ -5,7 +5,7 @@
  */
 interface ExternalAuthRegisterController
 {
-  public function setup(Array $form, Array $form_state);
+  public function setup(Array $form, Array &$form_state);
   public function signup();
   public function processSignupErrors(Array $form);
 }
