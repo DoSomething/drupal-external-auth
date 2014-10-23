@@ -5,7 +5,7 @@
  */
 interface ExternalAuthLoginController
 {
-    public function setup(Array $form, Array $form_state);
+    public function setup(Array $form, Array &$form_state);
     public function loginExists();
     public function loginExistingUser();
     public function getRemoteUser();
