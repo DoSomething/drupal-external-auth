@@ -65,7 +65,8 @@ function external_auth_process_login($form, &$form_state) {
     return;
   }
 
-  $login_controller = _external_auth_get_login_controller()->setup($form_state);
+  $login_controller = _external_auth_get_login_controller()->setup($form,
+    $form_state);
 
   // Process user with existing local account:
   if ($login_controller->loginExists()) {
@@ -105,7 +106,8 @@ function external_auth_process_register($form, &$form_state) {
   if (form_get_errors()) {
     return FALSE;
   }
-  $register_controller = _external_auth_get_register_controller()->setup($form_state);
+  $register_controller = _external_auth_get_register_controller()->setup($form,
+    $form_state);
 
   if (!$register_controller->signup()) {
     $register_controller->processSignupErrors($form);
