@@ -48,7 +48,7 @@ function external_auth_form_user_register_form_alter(&$form, $form_state) {
  * Implements hook_form_FORM_ID_alter() form user_profile_form().
  */
 function external_auth_form_user_profile_form_alter(&$form, $form_state) {
-  // @todo Implement profile sync.
+  _external_auth_alter_user_profile_sync($form);
 }
 
 // -----------------------------------------------------------------------
@@ -117,6 +117,25 @@ function external_auth_process_register($form, &$form_state) {
   return TRUE;
 }
 
+/**
+ * Validates user_profile.
+ */
+function external_auth_process_profile_sync($form, &$form_state) {
+  if (form_get_errors()) {
+    return FALSE;
+  }
+
+  $profile_sync_controller = _external_auth_get_profile_sync_controller();
+  $profile_sync_controller->setup($form, $form_state);
+
+  if (!$profile_sync_controller->sync()) {
+    $profile_sync_controller->processRemoteErrors($form);
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
 // -----------------------------------------------------------------------
 // Miscellaneous
 
@@ -124,7 +143,7 @@ function external_auth_process_register($form, &$form_state) {
  * Alters user login forms.
  */
 function _external_auth_alter_login(&$form) {
-  // Run login validator **BEFORE** everything else.
+  // Run login processing **BEFORE** the first declared validation.
   array_unshift($form['#validate'], 'external_auth_process_login');
 }
 
@@ -132,8 +151,16 @@ function _external_auth_alter_login(&$form) {
  * Alters user registration forms.
  */
 function _external_auth_alter_registration(&$form) {
-  // Run registration validator **AFTER** everything else.
+  // Run registration processing **AFTER** all validations.
   array_push($form['#validate'], 'external_auth_process_register');
+}
+
+/**
+ * Alters user profile forms.
+ */
+function _external_auth_alter_user_profile_sync(&$form) {
+  // Run registration processing **AFTER** all validations.
+  array_push($form['#validate'], 'external_auth_process_profile_sync');
 }
 
 /**
@@ -147,7 +174,7 @@ function _external_auth_get_active_auth_method() {
 }
 
 /**
- * Alters user registration forms.
+ * Returns enabled login controller implementation.
  */
 function _external_auth_get_login_controller() {
   $method = _external_auth_get_active_auth_method();
@@ -158,7 +185,7 @@ function _external_auth_get_login_controller() {
 }
 
 /**
- * Alters user registration forms.
+ * Returns enabled register controller implementation.
  */
 function _external_auth_get_register_controller() {
   $method = _external_auth_get_active_auth_method();
@@ -166,6 +193,17 @@ function _external_auth_get_register_controller() {
   $register_controller = new $register_controller_class();
   // @todo: check instance.
   return $register_controller;
+}
+
+/**
+ * Returns enabled profile sync controller implementation.
+ */
+function _external_auth_get_profile_sync_controller() {
+  $method = _external_auth_get_active_auth_method();
+  $profile_sync_controller_class = $method['profile sync controller'];
+  $profile_sync_controller = new $profile_sync_controller_class();
+  // @todo: check instance.
+  return $profile_sync_controller;
 }
 
 // -----------------------------------------------------------------------
