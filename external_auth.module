@@ -51,11 +51,18 @@ function external_auth_form_user_profile_form_alter(&$form, $form_state) {
   _external_auth_alter_user_profile_sync($form);
 }
 
+/**
+ * Implements hook_form_FORM_ID_alter() form user_pass().
+ */
+function external_auth_form_user_pass_alter(&$form, $form_state) {
+  _external_auth_alter_user_pass($form);
+}
+
 // -----------------------------------------------------------------------
 // Callbacks
 
 /**
- * Validates user_login_form.
+ * Validates user_login_form first.
  */
 function external_auth_process_login($form, &$form_state) {
   $values = &$form_state['values'];
@@ -100,7 +107,7 @@ function external_auth_process_login($form, &$form_state) {
 }
 
 /**
- * Validates user_register.
+ * Validates user_register last.
  */
 function external_auth_process_register($form, &$form_state) {
   if (form_get_errors()) {
@@ -118,7 +125,7 @@ function external_auth_process_register($form, &$form_state) {
 }
 
 /**
- * Validates user_profile.
+ * Validates user_profile last.
  */
 function external_auth_process_profile_sync($form, &$form_state) {
   if (form_get_errors()) {
@@ -133,6 +140,15 @@ function external_auth_process_profile_sync($form, &$form_state) {
     return FALSE;
   }
 
+  return TRUE;
+}
+
+/**
+ * Validates user_pass first.
+ */
+function external_auth_process_user_pass($form, &$form_state) {
+  $user_pass_controller = _external_auth_get_user_pass_controller();
+  $user_pass_controller->ensure_local_user_exists($form, $form_state);
   return TRUE;
 }
 
@@ -161,6 +177,14 @@ function _external_auth_alter_registration(&$form) {
 function _external_auth_alter_user_profile_sync(&$form) {
   // Run registration processing **AFTER** all validations.
   array_push($form['#validate'], 'external_auth_process_profile_sync');
+}
+
+/**
+ * Alters user forgot password form.
+ */
+function _external_auth_alter_user_pass(&$form) {
+  // Run registration processing **BEFORE** all validations.
+  array_unshift($form['#validate'], 'external_auth_process_user_pass');
 }
 
 /**
@@ -204,6 +228,17 @@ function _external_auth_get_profile_sync_controller() {
   $profile_sync_controller = new $profile_sync_controller_class();
   // @todo: check instance.
   return $profile_sync_controller;
+}
+
+/**
+ * Returns enabled profile sync controller implementation.
+ */
+function _external_auth_get_user_pass_controller() {
+  $method = _external_auth_get_active_auth_method();
+  $user_pass_controller_class = $method['user pass controller'];
+  $user_pass_controller = new $user_pass_controller_class();
+  // @todo: check instance.
+  return $user_pass_controller;
 }
 
 // -----------------------------------------------------------------------

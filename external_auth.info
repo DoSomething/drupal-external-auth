@@ -6,3 +6,4 @@ package = Authentication
 files[] = includes/external_auth_login_controller.inc
 files[] = includes/external_auth_register_controller.inc
 files[] = includes/external_auth_profile_sync_controller.inc
+files[] = includes/external_auth_user_pass_controller.inc
